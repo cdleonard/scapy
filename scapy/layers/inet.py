@@ -302,6 +302,7 @@ TCPOptions = (
      15: ("AltChkSumOpt", None),
      25: ("Mood", "!p"),
      28: ("UTO", "!H"),
+     29: ("AO", None),
      34: ("TFO", "!II"),
      # RFC 3692
      # 253: ("Experiment", "!HHHH"),
@@ -318,8 +319,25 @@ TCPOptions = (
      "AltChkSumOpt": 15,
      "Mood": 25,
      "UTO": 28,
+     "AO": 29,
      "TFO": 34,
      })
+
+
+class TCPAOValue(Packet):
+    """Value of TCP-AO option"""
+    fields_desc = [
+        ByteField("keyid", None),
+        ByteField("rnextkeyid", None),
+        StrLenField("mac", "", length_from=lambda p:len(p.original) - 2),
+    ]
+
+
+def get_tcpao(tcphdr):
+    for optid, optval in tcphdr.options:
+        if optid == 'AO':
+            return optval
+    return None
 
 
 class RandTCPOptions(VolatileValue):
@@ -398,6 +416,8 @@ class TCPOptionsField(StrField):
                 oname, ofmt = TCPOptions[0][onum]
                 if onum == 5:  # SAck
                     ofmt += "%iI" % (len(oval) // 4)
+                if onum == 29:  # AO
+                    oval = TCPAOValue(oval)
                 if ofmt and struct.calcsize(ofmt) == len(oval):
                     oval = struct.unpack(ofmt, oval)
                     if len(oval) == 1:
@@ -435,6 +455,8 @@ class TCPOptionsField(StrField):
                         if not isinstance(oval, tuple):
                             oval = (oval,)
                         oval = struct.pack(ofmt, *oval)
+                    if onum == 29:  # AO
+                        oval = bytes(oval)
                 else:
                     warning("Option [%s] unknown. Skipped.", oname)
                     continue

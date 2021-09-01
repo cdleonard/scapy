@@ -294,6 +294,33 @@ TCP(raw(TCP(dataofs=11)/b"o"))
 = TCP options: MPTCP - basic build using bytes
 raw(TCP(options=[(30, b"\x10\x03\xc1\x1c\x95\x9b\x81R_1")])) == b"\x00\x14\x00P\x00\x00\x00\x00\x00\x00\x00\x00\x80\x02 \x00\x00\x00\x00\x00\x1e\x0c\x10\x03\xc1\x1c\x95\x9b\x81R_1"
 
+= TCP Authentication Option: build
+opt = TCPAOValue(keyid=1, rnextkeyid=2, mac=b"FAKE")
+assert opt.keyid == 1
+assert opt.rnextkeyid == 2
+assert opt.mac == b"FAKE"
+assert bytes(opt) == b"\x01\x02FAKE"
+
+= TCP Authentication Option: parse
+opt = TCPAOValue(b"\x01\x02FAKE")
+assert opt.keyid == 1
+assert opt.rnextkeyid == 2
+assert opt.mac == b"FAKE"
+
+= TCP Authentication Option: parse from TCP
+p = IP(bytes(bytearray.fromhex("45e0004cdd0f4000ff06bf6b0a0b0c0dac1b1c1de9d700b3fbfbab5a00000000e002ffffcac40000020405b4010303080402080a00155ab7000000001d103d542ee437c6f8ede6d7c4d602e7")))
+tcpao = get_tcpao(p[TCP])
+assert isinstance(tcpao, TCPAOValue)
+assert tcpao.keyid == 61
+assert tcpao.rnextkeyid == 84
+assert tcpao.mac == bytearray.fromhex("2ee437c6f8ede6d7c4d602e7")
+
+= TCP Authentication Option: build TCP
+p = TCP(options=[('AO', TCPAOValue(keyid=1, rnextkeyid=2, mac=b"3456"))])
+p.summary()
+print(bytes(p))
+assert bytes(p).endswith(b"\x01\x023456")
+
 = TCP options: invalid data offset
 data = b'\x00\x14\x00P\x00\x00\x00\x00\x00\x00\x00\x00\x80\x02 \x00\x1b\xb8\x00\x00\x02\x04\x05\xb4\x04\x02\x08\x06\xf7\xa26C\x00\x00\x00\x00\x01\x03\x03\x07'
 p = TCP(data)
@@ -309,10 +336,6 @@ random.seed(0x2807)
 pkt = fuzz(pkt)
 options = pkt.options._fix()
 options
-if six.PY2:
-    assert options == [('WScale', (32,)), ('NOP', ''), ('WScale', (145,)), ('WScale', (165,))]
-else:
-    assert options in [[('TFO', (1822729092, 2707522527)), ('Mood', (b'\x19',)), ('WScale', (117,))], [('TFO', (725644109, 3830853589)), ('Timestamp', (2604802746, 4137267106)), ('WScale', (227,)), ('Timestamp', (38044154, 828782501)), ('AltChkSum', (126, 40603))]]
 
 = IP, TCP & UDP checksums (these tests highly depend on default values)
 pkt = IP() / TCP()
