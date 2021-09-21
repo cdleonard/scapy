@@ -632,18 +632,14 @@ class IP(Packet, IPTools):
         return lst
 
 
-def in4_chksum(proto, u, p):
-    """
-    As Specified in RFC 2460 - 8.1 Upper-Layer Checksums
+def in4_pseudoheader(proto, u, p):
+    """IPv4 Pseudo Header as defined in RFC793 as bytes
 
-    Performs IPv4 Upper Layer checksum computation. Provided parameters are:
-    - 'proto' : value of upper layer protocol
-    - 'u'  : IP upper layer instance
-    - 'p'  : the payload of the upper layer provided as a string
+    :param nh: value of upper layer protocol
+    :param u: upper layer instance
+    :param p: the payload of the upper layer provided as a string
     """
-    if not isinstance(u, IP):
-        warning("No IP underlayer to compute checksum. Leaving null.")
-        return 0
+    # type: (int, IP, bytes) -> bytes
     if u.len is not None:
         if u.ihl is None:
             olen = sum(len(x) for x in u.options)
@@ -667,11 +663,25 @@ def in4_chksum(proto, u, p):
         message += "Falling back to IP.dst for checksum computation."
         warning(message, len_sr_options)
 
-    psdhdr = struct.pack("!4s4sHH",
+    return struct.pack("!4s4sHH",
                          inet_pton(socket.AF_INET, u.src),
                          inet_pton(socket.AF_INET, u.dst),
                          proto,
                          ln)
+
+
+def in4_chksum(proto, u, p):
+    """IPv4 Pseudo Header checksum as defined in RFC793
+
+    :param nh: value of upper layer protocol
+    :param u: upper layer instance
+    :param p: the payload of the upper layer provided as a string
+    """
+    # type: (int, IP, bytes) -> int
+    if not isinstance(u, IP):
+        warning("No IP underlayer to compute checksum. Leaving null.")
+        return 0
+    psdhdr = in4_pseudoheader(proto, u, p)
     return checksum(psdhdr + p)
 
 
