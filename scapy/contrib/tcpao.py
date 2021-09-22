@@ -73,7 +73,6 @@ class TCPAOAlg_CMAC_AES(TCPAOAlg):
     @classmethod
     def kdf(self, master_key, context):
         # type: (bytes, bytes) -> bytes
-        # type: (bytes, bytes) -> bytes
         if len(master_key) == 16:
             key = master_key
         else:
