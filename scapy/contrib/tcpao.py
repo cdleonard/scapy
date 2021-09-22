@@ -175,7 +175,12 @@ def build_message_from_packet(p, include_options=True, sne=0):
     # Even if include_options=False the TCP-AO option itself is still included
     # with the MAC set to all-zeros. This means we need to parse TCP options.
     pos = 20
-    tcphdr_optend = p[TCP].dataofs * 4
+    th = p[TCP]
+    doff = th.dataofs
+    if doff is None:
+        opt_len = len(th.get_field("options").i2m(th, th.options))
+        doff = 5 + ((opt_len + 3) // 4)
+    tcphdr_optend = doff
     while pos < tcphdr_optend:
         optnum = orb(th_bytes[pos])
         pos += 1
@@ -207,8 +212,37 @@ def build_message_from_packet(p, include_options=True, sne=0):
     return result
 
 
-def get_packet_mac(p, traffic_key, alg, include_options=True, sne=0):
-    # type: (Packet, bytes, TCPAOAlg, bool, int) -> bytes
-    message_bytes = build_message_from_packet(
-        p, include_options=include_options, sne=sne)
-    return alg.mac(traffic_key, message_bytes)
+def calc_tcpao_traffic_key(p, alg, master_key, sisn, disn):
+    # type: (Packet, TCPAOAlg, bytes, int, int) -> bytes
+    """Calculate TCP-AO traffic-key from packet and initial sequence numbers
+
+    This is constant for an established connection.
+    """
+    return alg.kdf(master_key, build_context_from_packet(p, sisn, disn))
+
+
+def calc_tcpao_mac(p, alg, traffic_key, include_options=True, sne=0):
+    # type: (Packet, TCPAOAlg, bytes, bool, int) -> bytes
+    """Calculate TCP-AO MAC from packet and traffic key"""
+    return alg.mac(traffic_key, build_message_from_packet(
+        p, include_options=include_options, sne=sne
+    ))
+
+
+def sign_tcpao(
+    p,
+    alg,
+    traffic_key,
+    keyid=0,
+    rnextkeyid=0,
+    include_options=True,
+    sne=0,
+):
+    # type: (Packet, TCPAOAlg, bytes, int, int, bool, int) -> None
+    """Calculate TCP-AO option value and insert into packet"""
+    th = p[TCP]
+    keyids = struct.pack("BB", keyid, rnextkeyid)
+    th.options = th.options + [('AO', keyids + alg.maclen * b"\x00")]
+    message_bytes = calc_tcpao_mac(p, alg, traffic_key, include_options=include_options, sne=sne)
+    mac = alg.mac(traffic_key, message_bytes)
+    th.options[-1] = ('AO', keyids + mac)

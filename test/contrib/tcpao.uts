@@ -342,3 +342,40 @@ check(
     alg_name="AES-128-CMAC-96",
     include_options=True,
 )
+
++ TCP-AO Signature API
+= TCP-AO sign SYN packet build from scratch
+master_key = b"hello"
+alg = TCPAOAlg_HMAC_SHA1()
+keyid = 12
+rnextkeyid = 34
+
+p = IP() / TCP()
+p[TCP].flags == "S"
+sisn = p[TCP].seq
+disn = 0
+
+# sign
+traffic_key = calc_tcpao_traffic_key(p, alg, master_key, sisn, disn)
+print(traffic_key.hex())
+sign_tcpao(p, alg, traffic_key, keyid, rnextkeyid)
+mac = calc_tcpao_mac(p, alg, traffic_key)
+print(mac.hex())
+
+# parse
+p2 = IP(raw(p))
+ao = get_tcpao(p2[TCP])
+ao is not None
+ao.keyid == keyid
+ao.rnextkeyid == rnextkeyid
+print(ao.mac.hex(" "))
+print(mac.hex(" "))
+ao.mac == mac
+
+# calculate signature again on parsed packet
+traffic_key2 = calc_tcpao_traffic_key(p2, alg, master_key, p2[TCP].seq, 0)
+print(traffic_key2.hex())
+traffic_key == traffic_key2
+mac2 = calc_tcpao_mac(p2, alg, traffic_key2)
+print(mac2.hex(" "))
+mac == mac2
