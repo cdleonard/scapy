@@ -51,7 +51,7 @@ class TCPAOAlg:
         # type: (bytes, bytes) -> bytes
         raise NotImplementedError()
 
-    maclen = None
+    maclen = -1
 
 
 class TCPAOAlg_HMAC_SHA1(TCPAOAlg):
