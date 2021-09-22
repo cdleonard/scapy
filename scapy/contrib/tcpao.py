@@ -51,6 +51,8 @@ class TCPAOAlg:
         # type: (bytes, bytes) -> bytes
         raise NotImplementedError()
 
+    maclen = None
+
 
 class TCPAOAlg_HMAC_SHA1(TCPAOAlg):
     @classmethod
@@ -63,6 +65,8 @@ class TCPAOAlg_HMAC_SHA1(TCPAOAlg):
     def mac(cls, traffic_key, message):
         # type: (bytes, bytes) -> bytes
         return _hmac_sha1_digest(traffic_key, message)[:12]
+
+    maclen = 12
 
 
 class TCPAOAlg_CMAC_AES(TCPAOAlg):
@@ -80,6 +84,8 @@ class TCPAOAlg_CMAC_AES(TCPAOAlg):
     def mac(self, traffic_key, message):
         # type: (bytes, bytes) -> bytes
         return _cmac_aes_digest(traffic_key, message)[:12]
+
+    maclen = 12
 
 
 def get_alg(name):
