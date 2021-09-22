@@ -59,7 +59,6 @@ def check(
         message_bytes = tcpao.build_message_from_packet(
             p, include_options=include_options, sne=sne
         )
-        print(binascii.hexlify(message_bytes))
         mac = alg.mac(traffic_key, message_bytes)
         assert mac == fromhex(mac_hex), "match computed mac"
 

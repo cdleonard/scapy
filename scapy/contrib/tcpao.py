@@ -180,7 +180,7 @@ def build_message_from_packet(p, include_options=True, sne=0):
     if doff is None:
         opt_len = len(th.get_field("options").i2m(th, th.options))
         doff = 5 + ((opt_len + 3) // 4)
-    tcphdr_optend = doff
+    tcphdr_optend = doff * 4
     while pos < tcphdr_optend:
         optnum = orb(th_bytes[pos])
         pos += 1
